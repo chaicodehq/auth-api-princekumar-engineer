@@ -15,10 +15,61 @@ import { verifyToken } from '../utils/jwt.js';
  * 6. Attach user to req.user
  * 7. Call next()
  */
-export async function authenticate(req, res, next) {
+/**
+ * Authenticate user using JWT
+ */
+export async function authenticate(
+  req,
+  res,
+  next
+) {
   try {
-    // Your code here
+    // 1. Get Authorization header
+    const authHeader =
+      req.headers.authorization;
+
+    // 2. Validate Bearer format
+    if (
+      !authHeader ||
+      !authHeader.startsWith('Bearer ')
+    ) {
+      return res.status(401).json({
+        error: {
+          message: 'No token provided',
+        },
+      });
+    }
+
+    // 3. Extract token
+    const token =
+      authHeader.split(' ')[1];
+
+    // 4. Verify token
+    const decoded = verifyToken(token);
+
+    // 5. Find user
+    const user = await User.findById(
+      decoded.userId
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          message: 'Invalid token',
+        },
+      });
+    }
+
+    // 6. Attach user
+    req.user = user;
+
+    // 7. Continue
+    next();
   } catch (error) {
-    return res.status(401).json({ error: { message: 'Invalid token' } });
+    return res.status(401).json({
+      error: {
+        message: 'Invalid token',
+      },
+    });
   }
 }

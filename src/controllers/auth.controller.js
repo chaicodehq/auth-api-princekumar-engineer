@@ -11,9 +11,39 @@ import { signToken } from '../utils/jwt.js';
  * 3. Create new user (password will be hashed by pre-save hook)
  * 4. Return 201 with { user } (password excluded by default)
  */
+/**
+ * Register user
+ */
 export async function register(req, res, next) {
   try {
-    // Your code here
+    const { name, email, password } = req.body;
+
+    // Check existing user
+    const existingUser = await User.findOne({
+      email: email?.toLowerCase(),
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        error: {
+          message: 'Email already exists',
+        },
+      });
+    }
+
+    // Create user
+    const createdUser = await User.create({
+      name,
+      email,
+      password,
+    });
+
+    // Re-fetch so password is excluded
+    const user = await User.findById(createdUser._id);
+
+    return res.status(201).json({
+      user,
+    });
   } catch (error) {
     next(error);
   }
@@ -30,9 +60,54 @@ export async function register(req, res, next) {
  * 6. Generate JWT token with payload: { userId: user._id, email: user.email, role: user.role }
  * 7. Return 200 with { token, user } (exclude password from user object)
  */
+/**
+ * Login user
+ */
 export async function login(req, res, next) {
   try {
-    // Your code here
+    const { email, password } = req.body;
+
+    // Include password explicitly
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    }).select('+password');
+
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          message: 'Invalid credentials',
+        },
+      });
+    }
+
+    // Compare password
+    const isValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isValid) {
+      return res.status(401).json({
+        error: {
+          message: 'Invalid credentials',
+        },
+      });
+    }
+
+    // Generate JWT
+    const token = signToken({
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    });
+
+    // Remove password
+    user.password = undefined;
+
+    return res.status(200).json({
+      token,
+      user,
+    });
   } catch (error) {
     next(error);
   }
@@ -44,9 +119,14 @@ export async function login(req, res, next) {
  * 1. req.user is already set by auth middleware
  * 2. Return 200 with { user: req.user }
  */
+/**
+ * Current user
+ */
 export async function me(req, res, next) {
   try {
-    // Your code here
+    return res.status(200).json({
+      user: req.user,
+    });
   } catch (error) {
     next(error);
   }

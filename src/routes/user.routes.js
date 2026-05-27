@@ -16,6 +16,13 @@ import { requireRole } from '../middlewares/role.middleware.js';
 
 const router = Router();
 
-// Your routes here
+// Apply auth + admin role to all routes
+router.use(authenticate);
+router.use(requireRole('admin'));
+
+// Routes
+router.get('/', listUsers);
+router.get('/:id', getUser);
+router.delete('/:id', deleteUser);
 
 export default router;
